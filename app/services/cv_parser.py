@@ -1,7 +1,21 @@
+import re
+import unicodedata
 from io import BytesIO
 
 from docx import Document
 from pypdf import PdfReader
+
+
+def normalize_text(text: str) -> str:
+    text = unicodedata.normalize('NFKC', text)
+
+    text = text.replace('\u00a0', ' ')
+
+    text = re.sub(r'[ \t]+', ' ', text)
+
+    text = re.sub(r'\n{3,}', '\n\n', text)
+
+    return text.strip()
 
 
 def extract_pdf_text(file_bytes: bytes) -> str:
@@ -10,10 +24,12 @@ def extract_pdf_text(file_bytes: bytes) -> str:
     pages = []
 
     for page in reader.pages:
-        text = page.extract_text() or ""
-        pages.append(text)
+        text = page.extract_text() or ''
 
-    return "\n".join(pages).strip()
+        if text.strip():
+            pages.append(text)
+
+    return normalize_text('\n'.join(pages))
 
 
 def extract_docx_text(file_bytes: bytes) -> str:
@@ -25,19 +41,16 @@ def extract_docx_text(file_bytes: bytes) -> str:
         if paragraph.text.strip()
     ]
 
-    return "\n".join(paragraphs)
+    return normalize_text('\n'.join(paragraphs))
 
 
-def extract_cv_text(
-    file_bytes: bytes,
-    filename: str,
-) -> str:
+def extract_cv_text(file_bytes: bytes, filename: str) -> str:
     filename_lower = filename.lower()
 
-    if filename_lower.endswith(".pdf"):
+    if filename_lower.endswith('.pdf'):
         return extract_pdf_text(file_bytes)
 
-    if filename_lower.endswith(".docx"):
+    if filename_lower.endswith('.docx'):
         return extract_docx_text(file_bytes)
 
-    raise ValueError("Only PDF and DOCX files are supported.")
+    raise ValueError('Only PDF and DOCX files are supported.')
