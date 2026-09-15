@@ -1,0 +1,1 @@
+"""Frevia AI application package."""
