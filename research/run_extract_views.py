@@ -128,6 +128,11 @@ def main() -> None:
         action='store_true',
         help='Re-extract everything, ignoring existing checkpoints.',
     )
+    parser.add_argument(
+        '--eval-pool',
+        action='store_true',
+        help='Only the Data Science + Hadoop resumes used in evaluation (82 CV).',
+    )
     args = parser.parse_args()
 
     resume = not args.no_resume
@@ -138,6 +143,8 @@ def main() -> None:
             if source == 'jobs'
             else datasets.load_resumes()
         )
+        if args.eval_pool and source == 'resumes':
+            df = datasets.build_eval_pool(df)
         extract_docs(df, source, limit=args.limit, workers=args.workers, resume=resume)
 
 
