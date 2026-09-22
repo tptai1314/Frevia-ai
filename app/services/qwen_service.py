@@ -19,11 +19,11 @@ The JSON must contain EXACTLY these fields:
 
 {
   "professional_title": string or null,
-  "summary": string or null,z
+  "summary": string or null,
   "skills": [
     {
       "name": string,
-      "level": string or null
+      "proficiency_level": integer between 1 and 10, or null
     }
   ],
   "experience": [
@@ -34,14 +34,7 @@ The JSON must contain EXACTLY these fields:
       "years": number or null
     }
   ],
-  "education": [
-    {
-      "institution": string or null,
-      "degree": string or null,
-      "field": string or null,
-      "years": string or null
-    }
-  ],
+  "education": [string],
   "certifications": [string],
   "languages": [string],
   "projects": [
@@ -69,6 +62,12 @@ RULES:
 11. CV text may contain spacing, OCR, or character-extraction errors.
     Correct only obvious extraction noise; never guess missing information.
 12. When uncertain, prefer null or [] rather than guessing.
+13. proficiency_level: rate each skill from 1 (basic) to 10 (expert).
+    Map self-described levels when present, e.g. Beginner~2, Intermediate~5,
+    Advanced~8, Expert/Proficient~10. If no level can be estimated, use null.
+14. education: return one formatted string per entry. Format:
+    "Degree - Institution (years)", e.g. "BSc Computer Science - Hanoi University
+    (2018-2022)". Omit any unknown part, but keep the institution at minimum.
 
 CV TEXT:
 """
