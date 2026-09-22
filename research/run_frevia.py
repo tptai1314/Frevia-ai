@@ -122,11 +122,13 @@ def run(
 
     # evaluation
     rows: list[dict[str, float]] = []
+    p10_series: dict[str, np.ndarray] = {}
     for name, sc in method_scores.items():
         for domain, label in (('Data Science', label_ds), ('Hadoop', label_hadoop)):
             labels = np.repeat(label[None, :], sc.shape[0], axis=0)
             p = evaluate.precision_at_k(sc, labels, config.TOP_K)
             r = evaluate.recall_at_k(sc, labels, config.TOP_K)
+            p10_series[f'{name}|{domain}'] = p
             rows.append(
                 {
                     'method': name,
@@ -143,6 +145,16 @@ def run(
                 f'P@10={p.mean():.4f}+-{p.std(ddof=1):.4f}  '
                 f'R@10={r.mean():.4f}+-{r.std(ddof=1):.4f}'
             )
+
+    main = 'frevia-full' if 'frevia-full' in method_scores else 'frevia-cross'
+    for base in ('keyword', 'tfidf', 'sbert'):
+        diff = p10_series[f'{main}|Data Science'] - p10_series[f'{base}|Data Science']
+        _stat, p_wilcoxon = evaluate.wilcoxon_signed_rank(diff, np.zeros_like(diff))
+        d_cohen = evaluate.cohens_d(diff, np.zeros_like(diff))
+        print(
+            f'[stats] {main} vs {base} (DS): Wilcoxon p={p_wilcoxon:.3e}, '
+            f"Cohen's d={d_cohen:.3f}"
+        )
 
     out = pd.DataFrame(rows)
     out.to_csv(config.PROCESSED_DIR / 'frevia_results.csv', index=False)

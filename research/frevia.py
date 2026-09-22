@@ -158,11 +158,7 @@ def train_adaptive(
     lr: float = 1e-3,
     seed: int = 0,
 ) -> AdaptiveFusion:
-    """Train per-job gating with BPR. labels: (n_jobs, n_resumes) binary.
-
-    signals[..., :-1] are view-level; the cross-view signal is excluded from
-    weighting here and folded into the static ordering when used (see predict).
-    """
+    """Train per-job gating with BPR. labels: (n_jobs, n_resumes) binary."""
     torch.manual_seed(seed)
     n_jobs, n_res, n_sig = signals.shape
     model = AdaptiveFusion(job_emb.shape[-1], n_signals=N_SIGNALS)
@@ -170,7 +166,6 @@ def train_adaptive(
     job_t = torch.tensor(job_emb, dtype=torch.float32)
     sig_t = torch.tensor(signals, dtype=torch.float32)
 
-    candidate_idx = np.arange(n_res)
     for epoch in range(epochs):
         total_loss = 0.0
         perm = np.random.permutation(n_jobs)
@@ -185,9 +180,8 @@ def train_adaptive(
             else:
                 r_neg = r_pos
             alpha = model(job_t[j:j + 1])  # (1, n_signals)
-            w = alpha[..., :-1]  # ignore cross signal in trained weighting
-            score_pos = (w * sig_t[j, r_pos, :-1]).sum()
-            score_neg = (w * sig_t[j, r_neg, :-1]).sum()
+            score_pos = (alpha * sig_t[j, r_pos]).sum()
+            score_neg = (alpha * sig_t[j, r_neg]).sum()
             loss = -torch.log(torch.sigmoid(score_pos - score_neg) + 1e-8)
             opt.zero_grad()
             loss.backward()
@@ -201,12 +195,11 @@ def train_adaptive(
 def predict_adaptive(
     model: AdaptiveFusion, job_emb: np.ndarray, signals: np.ndarray
 ) -> np.ndarray:
-    """Score with trained gating: sum alpha(v)*same_view(v) + cross_view."""
+    """Score with trained gating: sum over all weighted signals."""
     with torch.no_grad():
         w = model(torch.tensor(job_emb, dtype=torch.float32))  # (n_jobs, n_signals)
     w = w.numpy()
     scores = np.zeros((signals.shape[0], signals.shape[1]), dtype=float)
-    for v in range(len(VIEWS)):
+    for v in range(N_SIGNALS):
         scores += w[:, v:v + 1] * signals[:, :, v]
-    scores += signals[:, :, CROSS_IDX]
     return scores
